@@ -18,6 +18,7 @@ The same code also runs on the Seeed XIAO nRF52840, nice!nano v2, and Nordic DK 
 only the pin defines changed (see "Other boards" below).
 
 Here are pics of a SuperMini and Seeed XIAO nrf connected to a Raspberry Pi 3b running DreamDexed (Minidexed fork):
+
 <img src="BLE-MIDI-host-SuperMicro-nrf52840.jpg" width="49%" alt="SuperMicro nrf52840"><img src="BLE-MIDI-host-Seeed-XIAO-nrf52840.jpg" width="49%" alt="Seeed XIAO nrf52840">
 
 ## Why BLE central + pairing?
