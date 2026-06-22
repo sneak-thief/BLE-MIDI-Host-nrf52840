@@ -91,8 +91,8 @@ Library Manager: **Adafruit TinyUSB Library** and **MIDI Library**
 
 ## 3. Wiring (SuperMini / ProMicro nRF52840)
 
-- **Serial MIDI out:** **D1 (TX, P0.06)** -> optocoupler -> DIN-5 / TRS, 31250 baud.
-- **Serial MIDI in:** **D0 (RX, P0.08)** -> 220 Ohm resistor -> DIN-5 / TRS, 31250 baud.
+- **Serial MIDI out:** **D1 (TX, P0.06)** -> 220 Ohm resistor -> DIN-5 / TRS, 31250 baud.
+- **Serial MIDI in:** **D0 (RX, P0.08)** -> optocoupler -> DIN-5 / TRS, 31250 baud.
   (On this board D6/D7 are I2C pins, NOT serial — use D0.)
 - **USB MIDI:** native USB connector (no wiring).
 - **Status LED:** onboard **red** USR LED (P0.15) — solid when connected.
