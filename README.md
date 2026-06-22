@@ -9,8 +9,12 @@ _Description:_
 
 Connects to a BLE MIDI peripheral as a **central**, pairs with it, and forwards
 all incoming MIDI to both **USB MIDI** (class-compliant) and **serial MIDI**
-(DIN-5 / TRS via an optocoupler at 31250 baud). USB MIDI input is also bridged
-back out to serial.
+(DIN-5 / TRS via an optocoupler at 31250 baud). 
+
+Bonus: When no BLE peripheral is connected, the bridge instead acts as a
+bidirectional USB <-> serial MIDI interface (USB in -> serial out, and serial
+in -> USB out). This USB/serial bridging is automatically disabled while BLE is
+connected, so it can't echo or interfere with the BLE MIDI stream.
 
 Target board: **SuperMini / ProMicro nRF52840** (Nice!Nano-compatible clone, $3 on aliexpress)
 
