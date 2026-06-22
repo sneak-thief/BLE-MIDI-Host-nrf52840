@@ -5,8 +5,8 @@
 // Scans for and connects to a BLE MIDI peripheral, pairs with it, then forwards
 // all received MIDI to:
 //   - USB MIDI (class-compliant, native nRF52840 USB)
-//   - Serial MIDI out on D1 (TX) -> optocoupler -> DIN-5 or TRS midi
-//   - Serial MIDI in on D0 (RX) -> 220 Ohm resistor -> DIN-5 or TRS midi
+//   - Serial MIDI out on D1 (TX) -> 220 Ohm resistor -> DIN-5 or TRS midi
+//   - Serial MIDI in on D0 (RX) -> optocoupler -> DIN-5 or TRS midi
 //
 // See README.md for board setup and how to target other nRF52840 boards.
 
