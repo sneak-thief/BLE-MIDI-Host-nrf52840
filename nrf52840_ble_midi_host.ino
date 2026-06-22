@@ -47,6 +47,11 @@ BLEClientCharacteristic midiChar(BLEMIDI_CHAR_UUID);
 
 Adafruit_USBD_MIDI usb_midi;
 
+// True while a BLE MIDI peripheral is connected and notifications are enabled.
+// Controls the fallback USB<->serial bridge in loop(): that bridge runs ONLY
+// when BLE is NOT connected.
+static volatile bool g_bleConnected = false;
+
 static inline void ledOn()  { digitalWrite(LED_STATUS, LED_ACTIVE_LOW ? LOW  : HIGH); }
 static inline void ledOff() { digitalWrite(LED_STATUS, LED_ACTIVE_LOW ? HIGH : LOW ); }
 
@@ -147,12 +152,14 @@ void connection_secured_callback(uint16_t conn_handle) {
         return;
     }
     midiChar.enableNotify();
+    g_bleConnected = true;
     ledOn();
 }
 
 void disconnect_callback(uint16_t conn_handle, uint8_t reason) {
     (void) conn_handle;
     (void) reason;
+    g_bleConnected = false;
     ledOff();
 }
 
@@ -195,22 +202,79 @@ void setup() {
     Bluefruit.Scanner.start(0);             // scan forever until connected
 }
 
-void loop() {
-    // Also bridge USB MIDI input out to serial MIDI.
-    while (usb_midi.available()) {
-        uint8_t packet[4];
-        if (usb_midi.readPacket(packet)) {
-            uint8_t cin = packet[0] & 0x0F;
-            if (cin >= 0x02) {
-                uint8_t status = packet[1];
-                uint8_t len = msgLen(status);
-                if (len) {
-                    SERIAL_MIDI_PORT.write(status);
-                    if (len >= 2) SERIAL_MIDI_PORT.write(packet[2]);
-                    if (len >= 3) SERIAL_MIDI_PORT.write(packet[3]);
-                }
+// --- Serial MIDI input parser (serial -> USB), used only when BLE is down ---
+// Reads raw MIDI bytes from the DIN/serial port and assembles complete messages,
+// honoring running status, then forwards each to USB MIDI.
+static void pumpSerialToUsb() {
+    static uint8_t  runningStatus = 0;
+    static uint8_t  data[2];
+    static uint8_t  dataIndex = 0;
+    static uint8_t  expectedLen = 0;   // total bytes incl. status
+
+    while (SERIAL_MIDI_PORT.available()) {
+        uint8_t b = SERIAL_MIDI_PORT.read();
+
+        if (b & 0x80) {
+            // Status byte. Real-time messages (0xF8+) are single-byte and may
+            // appear mid-stream; pass them straight through without disturbing
+            // running status.
+            if (b >= 0xF8) {
+                uint8_t pkt[4] = { 0x0F, b, 0, 0 };
+                usb_midi.writePacket(pkt);
+                continue;
             }
+            runningStatus = b;
+            expectedLen   = msgLen(b);
+            dataIndex     = 0;
+            if (expectedLen == 1) {            // status-only message
+                uint8_t pkt[4] = { (uint8_t)(b >> 4), b, 0, 0 };
+                usb_midi.writePacket(pkt);
+                runningStatus = 0;
+            }
+            continue;
         }
+
+        // Data byte
+        if (runningStatus == 0 || expectedLen == 0) continue;  // no context
+        data[dataIndex++] = b;
+
+        if (dataIndex >= (expectedLen - 1)) {
+            uint8_t cin = runningStatus >> 4;
+            uint8_t pkt[4] = { cin, runningStatus,
+                               data[0],
+                               (uint8_t)(expectedLen >= 3 ? data[1] : 0) };
+            usb_midi.writePacket(pkt);
+            dataIndex = 0;   // running status: keep status for the next message
+        }
+    }
+}
+
+// --- USB MIDI input -> serial (USB -> serial), used only when BLE is down ---
+static void pumpUsbToSerial() {
+    uint8_t packet[4];
+    while (usb_midi.available()) {
+        if (!usb_midi.readPacket(packet)) break;
+        uint8_t cin = packet[0] & 0x0F;
+        if (cin < 0x02) continue;
+        uint8_t status = packet[1];
+        uint8_t len = msgLen(status);
+        if (!len) continue;
+        SERIAL_MIDI_PORT.write(status);
+        if (len >= 2) SERIAL_MIDI_PORT.write(packet[2]);
+        if (len >= 3) SERIAL_MIDI_PORT.write(packet[3]);
+    }
+}
+
+void loop() {
+    // When a BLE MIDI peripheral is connected, this is a pure BLE-in bridge:
+    // BLE -> USB + serial happens in the notify callback, and the USB<->serial
+    // fallback is DISABLED so it can't echo or interfere with the BLE stream.
+    //
+    // When BLE is NOT connected, act as a bidirectional USB<->serial MIDI
+    // interface instead.
+    if (!g_bleConnected) {
+        pumpUsbToSerial();   // USB  -> serial
+        pumpSerialToUsb();   // serial -> USB
     }
     delay(1);
 }
